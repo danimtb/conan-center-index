@@ -80,7 +80,7 @@ that have future-proof scalability"""
             else:
                 os.environ[name] = value
 
-        extra = "" if self.settings.os == "Windows" or self.options.shared else "extra_inc=big_iron.inc"
+        extra = "" if self.options.shared else "extra_inc=big_iron.inc"
         arch = {"x86": "ia32",
                 "x86_64": "intel64",
                 "armv7":  "armv7",
