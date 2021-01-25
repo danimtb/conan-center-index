@@ -15,11 +15,13 @@ class ZeroMQConan(ConanFile):
         "shared": [True, False],
         "fPIC": [True, False],
         "encryption": [None, "libsodium", "tweetnacl"],
+        "poller": [None, "kqueue", "epoll", "devpoll", "pollset", "poll", "select"]
     }
     default_options = {
         "shared": False,
         "fPIC": True,
         "encryption": "libsodium",
+        "poller": None,
     }
     generators = "cmake", "cmake_find_package"
 
@@ -63,11 +65,13 @@ class ZeroMQConan(ConanFile):
         self._cmake.definitions["ENABLE_CPACK"] = False
         self._cmake.definitions["WITH_DOCS"] = False
         self._cmake.definitions["WITH_DOC"] = False
+        if self.options.poller:
+            self._cmake.definitions["POLLER"] = self.options.poller
         self._cmake.configure(build_folder=self._build_subfolder)
         return self._cmake
 
     def _patch_sources(self):
-        for patch in self.conan_data["patches"][self.version]:
+        for patch in self.conan_data.get("patches", {}).get(self.version, []):
             tools.patch(**patch)
         os.unlink(os.path.join(self._source_subfolder, "builds", "cmake", "Modules", "FindSodium.cmake"))
 
@@ -96,6 +100,7 @@ class ZeroMQConan(ConanFile):
         tools.rmdir(os.path.join(self.package_folder, "lib", "pkgconfig"))
         tools.rmdir(os.path.join(self.package_folder, "share"))
         tools.rmdir(os.path.join(self.package_folder, "CMake"))
+        tools.rmdir(os.path.join(self.package_folder, "lib", "cmake"))
 
     def package_info(self):
         # TODO: CMake imported target shouldn't be namespaced
