@@ -1,9 +1,15 @@
-from conans import ConanFile, Meson, tools
-from conans.errors import ConanInvalidConfiguration
 import functools
 import os
 
-required_conan_version = ">= 1.36.0"
+from conan import ConanFile
+from conan.tools.build import cross_building
+from conan.tools.meson import Meson
+from conan.tools.files import apply_conandata_patches, copy, export_conandata_patches, get, rmdir
+from conan.tools.layout import basic_layout
+from conan.tools.scm import Version
+from conan.errors import ConanInvalidConfiguration
+
+required_conan_version = ">=1.36.0"
 
 
 class PkgConfConan(ConanFile):
@@ -13,7 +19,6 @@ class PkgConfConan(ConanFile):
     topics = ("pkgconf")
     license = "ISC"
     description = "package compiler and linker metadata toolkit"
-
     settings = "os", "arch", "compiler", "build_type"
     options = {
         "shared": [True, False],
@@ -25,6 +30,9 @@ class PkgConfConan(ConanFile):
         "fPIC": True,
         "enable_lib": False,
     }
+
+    def layout(self):
+        basic_layout(self)
 
     @property
     def _is_clang_cl(self):
@@ -44,31 +52,30 @@ class PkgConfConan(ConanFile):
         return str(self.settings.compiler) in ["Visual Studio", "msvc"]
 
     def export_sources(self):
-        for patch in self.conan_data.get("patches", {}).get(self.version, []):
-            self.copy(patch["patch_file"])
+        export_conandata_patches(self)
 
     def config_options(self):
         if self.settings.os == "Windows":
-            del self.options.fPIC
+            self.options.rm_safe("fPIC")
 
     def configure(self):
         if not self.options.enable_lib:
-            del self.options.fPIC
-            del self.options.shared
+            self.options.rm_safe("fPIC")
+            self.options.rm_safe("shared")
         elif self.options.shared:
-            del self.options.fPIC
-        del self.settings.compiler.libcxx
-        del self.settings.compiler.cppstd
+            self.options.rm_safe("fPIC")
+        self.settings.compiler.rm_safe("libcxx")
+        self.settings.compiler.rm_safe("cppstd")
 
     def validate(self):
-        if hasattr(self, "settings_build") and tools.cross_building(self):
+        if hasattr(self, "settings_build") and cross_building(self):
             raise ConanInvalidConfiguration("Cross-building is not implemented in the recipe")
 
     def build_requirements(self):
         self.build_requires("meson/0.62.1")
 
     def source(self):
-        tools.get(**self.conan_data["sources"][self.version], destination=self._source_subfolder, strip_root=True)
+        get(self, **self.conan_data["sources"][self.version], destination=self._source_subfolder, strip_root=True)
 
     @property
     def _sharedstatedir(self):
@@ -85,8 +92,7 @@ class PkgConfConan(ConanFile):
         return meson
 
     def _patch_sources(self):
-        for patch in self.conan_data.get("patches", {}).get(self.version, []):
-            tools.patch(**patch)
+        apply_conandata_patches(self)
         if not self.options.get_safe("shared", False):
             tools.replace_in_file(os.path.join(self._source_subfolder, "meson.build"),
                                   "'-DLIBPKGCONF_EXPORT'",
@@ -112,25 +118,25 @@ class PkgConfConan(ConanFile):
             if self.options.enable_lib and not self.options.shared:
                 os.rename(os.path.join(self.package_folder, "lib", "libpkgconf.a"),
                           os.path.join(self.package_folder, "lib", "pkgconf.lib"),)
-        
-        if not self.options.enable_lib:
-            tools.rmdir(os.path.join(self.package_folder, "lib"))
-            tools.rmdir(os.path.join(self.package_folder, "include"))
 
-        tools.rmdir(os.path.join(self.package_folder, "share", "man"))
+        if not self.options.enable_lib:
+            rmdir(self, os.path.join(self.package_folder, "lib"))
+            rmdir(self, os.path.join(self.package_folder, "include"))
+
+        rmdir(self, os.path.join(self.package_folder, "share", "man"))
         os.rename(os.path.join(self.package_folder, "share", "aclocal"),
                   os.path.join(self.package_folder, "bin", "aclocal"))
-        tools.rmdir(os.path.join(self.package_folder, "share"))
-        tools.rmdir(os.path.join(self.package_folder, "lib", "pkgconfig"))
+        rmdir(self, os.path.join(self.package_folder, "share"))
+        rmdir(self, os.path.join(self.package_folder, "lib", "pkgconfig"))
 
     def package_id(self):
-        if not self.options.enable_lib:
+        if not self.info.options.enable_lib:
             del self.info.settings.compiler
 
     def package_info(self):
         if self.options.enable_lib:
             self.cpp_info.set_property("pkg_config_name", "libpkgconf")
-            if tools.Version(self.version) >= "1.7.4":
+            if Version(self.version) >= "1.7.4":
                 self.cpp_info.includedirs.append(os.path.join("include", "pkgconf"))
             self.cpp_info.libs = ["pkgconf"]
             if not self.options.shared:
