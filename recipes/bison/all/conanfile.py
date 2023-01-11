@@ -1,7 +1,8 @@
 from conan import ConanFile
 from conan.errors import ConanInvalidConfiguration
 from conan.tools.files import get, apply_conandata_patches, replace_in_file
-from conans import AutoToolsBuildEnvironment, tools
+from conan.tools.gnu import Autotools, AutotoolsToolchain
+from conan.tools.microsoft import is_msvc
 import contextlib
 import os
 
@@ -40,20 +41,24 @@ class BisonConan(ConanFile):
             del self.options.fPIC
 
     def configure(self):
-        del self.settings.compiler.libcxx
-        del self.settings.compiler.cppstd
+        self.settings.rm_safe("compiler.libcxx")
+        self.settings.rm_safe("compiler.cppstd")
 
     def requirements(self):
         self.requires("m4/1.4.19")
 
+    def generate(self):
+        tc = AutotoolsToolchain(self)
+        tc.generate()
+
     def validate(self):
-        if self.settings.compiler == "Visual Studio" and self.version == "3.8.2":
+        if is_msvc(self) and self.version == "3.8.2":
             raise ConanInvalidConfiguration("bison/3.8.2 is not yet ready for Visual Studio, use previous version or open a pull request on https://github.com/conan-io/conan-center-index/pulls")
 
     def build_requirements(self):
-        if self._settings_build.os == "Windows" and not tools.get_env("CONAN_BASH_PATH"):
+        if is_msvc(self):
             self.build_requires("msys2/cci.latest")
-        if self.settings.compiler == "Visual Studio":
+        if is_msvc(self):
             self.build_requires("automake/1.16.5")
         if self.settings.os != "Windows":
             self.build_requires("flex/2.6.4")
@@ -64,7 +69,7 @@ class BisonConan(ConanFile):
 
     @contextlib.contextmanager
     def _build_context(self):
-        if self.settings.compiler == "Visual Studio":
+        if is_msvc(self):
             with tools.vcvars(self):
                 env = {
                     "CC": "{} cl -nologo".format(tools.unix_path(self.deps_user_info["automake"].compile)),
@@ -99,7 +104,7 @@ class BisonConan(ConanFile):
             self._autotools.defines.append("_WINDOWS")
         if self.settings.compiler == "apple-clang":
             args.append("gl_cv_compiler_check_decl_option=")
-        if self.settings.compiler == "Visual Studio":
+        if is_msvc(self):
             # Avoid a `Assertion Failed Dialog Box` during configure with build_type=Debug
             # Visual Studio does not support the %n format flag:
             # https://docs.microsoft.com/en-us/cpp/c-runtime-library/format-specification-syntax-printf-and-wprintf-functions
@@ -141,9 +146,9 @@ class BisonConan(ConanFile):
 
     def build(self):
         self._patch_sources()
-        with self._build_context():
-            env_build = self._configure_autotools()
-            env_build.make()
+        autotools = Autotools(self)
+        autotools.configure()
+        autotools.make()
 
     def package(self):
         with self._build_context():
