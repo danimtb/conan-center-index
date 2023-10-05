@@ -1,0 +1,18 @@
+name: "[service] Check open pull-requests per user"
+
+on:
+  pull_request_target:
+    types: [opened]
+
+jobs:
+  comment:
+    if: github.repository == 'conan-io/conan-center-index'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: master
+      - uses: ./.github/actions/check-open-prs-per-user
+        with:
+          threshold: "8"
+          comment: "Hello @{username}, we've noticed you have [several pull-requests open](https://github.com/conan-io/conan-center-index/pulls/{username}) :open_file_folder:\\n\\nTo ensure a good experience for all, we aim to moderate the system load.\\nWe'd appreciate it if you could keep the number of open pull-requests between 5 and 10 :handshake:\\n\\nYour cooperation is valued, thank you! :smile:"

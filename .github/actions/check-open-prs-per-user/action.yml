@@ -1,0 +1,71 @@
+name: 'Open pull-requests per user'
+description: 'Check the number of pull-requests open per user, if the number is higher than the threshold, post a nice comment'
+author: 'danimtb'
+inputs:
+  threshold:
+    description: "Maximum number of pull-requests open per user"
+    required: true
+    default: "10"
+  comment:
+    description: "Comment to post in the pull-request when the limit of open PRs is reached"
+    required: true
+    default: "You have some pull-requests open. Please consider working on them first :smile:"
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-python@v4
+      with:
+        python-version: "3.8"
+
+    - name: Install requirements
+      shell: bash
+      run: |
+        pip install PyGithub==2.1.1
+
+    - name: Check open PRs
+      id: check-prs
+      shell: python
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+        PYTHONPATH: ${{github.workspace}}
+      run: |
+        import os
+        from github import Github
+        import json
+
+        threshold = int(${{ inputs.threshold }})
+        comment = "${{ inputs.comment }}"
+        username = "${{ github.event.pull_request.user.login }}"
+
+        # Create a Github instance with your token
+        g = Github(os.environ["GITHUB_TOKEN"])
+
+        # Get the repository full name and pull request number from the event payload
+        with open(os.environ["GITHUB_EVENT_PATH"], "r") as event_file:
+            event_payload = json.load(event_file)
+        repo_full_name = event_payload["repository"]["full_name"]
+        pr_number = event_payload["pull_request"]["number"]
+
+        # Define the username whose PRs you want to check
+        username = "${{ github.event.pull_request.user.login }}"
+
+        # Get the repository and pull request objects
+        repo = g.get_repo(repo_full_name)
+        pr = repo.get_pull(pr_number)
+
+        # Get all open pull requests in the repository
+        open_prs = [p for p in repo.get_pulls(state="open")]
+
+        # Filter open PRs created by the specified username
+        user_open_prs = [p for p in open_prs if p.user.login == username]
+
+        # Sort user open PRs by their creation date in ascending order
+        user_open_prs = sorted(user_open_prs, key=lambda p: p.created_at)
+
+        # Check the number of open PRs and the specified threshold
+        if len(user_open_prs) > threshold:
+            # Post a comment on the current pull request if the threshold is reached
+            user_open_prs_str = "#" + ", #".join([str(pr.number) for pr in user_open_prs])
+            user_open_prs_len = len(user_open_prs)
+            comment_text = comment.format(username=username, user_open_prs_str=user_open_prs_str, user_open_prs_len=user_open_prs_len)
+            pr.create_issue_comment(comment_text)
