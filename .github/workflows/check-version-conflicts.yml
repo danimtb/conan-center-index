@@ -1,0 +1,86 @@
+name: "[service] Check reference version conflicts"
+
+on:
+  pull_request:
+
+env:
+  PYVER: "3.10"
+
+jobs:
+  comment:
+    if: github.repository == 'conan-io/conan-center-index'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: master
+      - name: Get changed files
+        uses: ./.github/actions/pr_changed_files
+        id: changed_files
+        with:
+          files: |
+            recipes/**
+      - uses: actions/setup-python@v4
+        if: steps.changed_files.outputs.any_changed == 'true'
+        with:
+          python-version: ${{ env.PYVER }}
+      - name: Install requirements
+        if: steps.changed_files.outputs.any_changed == 'true'
+        shell: bash
+        run: |
+          pip install conan --upgrade && conan profile detect --force
+      - name: Check conflicts
+        if: steps.changed_files.outputs.any_changed == 'true'
+        id: check-conflicts
+        shell: python
+        env:
+          PYTHONPATH: ${{github.workspace}}
+        run: |
+          import os
+          from pathlib import Path
+
+          def read(filename):
+              with open(filename, "r") as f:
+              return f.read()
+
+          def run(command):
+              print(command)
+              ret = os.system(command)
+              if ret != 0:
+                  raise Exception("Command failed: {}".format(command))
+
+          def is_not_in_list(string_to_check, string_list):
+              return all(string_to_check not in item for item in string_list)
+
+          refs_to_check = [:]
+          changed_files = list("{{ inputs.changed_files.all_changed_files }}".split(" "))
+          changed_paths = [Path(f) for f in changed_files]
+          ref_folders = [directories[1] for directories in changed_paths.parts if len(directories) > 1 and "recipes" in directories[0]]
+          assert len(list(set(ref_folders))) == 1, f"More than one recipe modified: {changed_folders}"
+          ref_name = list(set(ref_folders))[0]
+
+          recipe_folder = os.path.join("recipes", ref_name)
+          config_file = os.path.join(recipe_folder, "config.yml")
+          if not os.path.exists(config_file):
+              raise Exception(f"The file {config_file} does not exist")
+
+          with open(config_file, "r") as file:
+              config = yaml.safe_load(file)
+                  for version in config["versions"]:
+                      folder = config["version"][version]["folder"]
+                      refs_to_check[f"{ref_name}/{version}"] = ["name": ref_name, "version": version, "path": "recipes/{name}/{folder}"]
+
+          critical_refs = ["tensorflow-lite/2.12.0", "opencv/4.5.5", "boost/1.83.0", "sdl/2.28.2", "poco/1.12.4", "protobuf/3.21.12"]
+
+          for ref, data in refs_to_check.items():
+              name = data["name"]
+              version = data["version"]
+              path = data["path"]
+              run(f"conan export {path} --name {name} --version {version}")
+              if is_not_in_list(name, critical_refs)
+              all_refs = [ref].extend(critical_refs) if is_not_in_list(name, critical_refs) else critical_refs
+              requires_args = " ".join([f"--requires={ref}" for ref in all_refs])
+              try:
+                  run(f"conan graph info {requires_args} 2> output.txt")
+              except Exception:
+                  print(read("output.txt"))
