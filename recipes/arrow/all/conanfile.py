@@ -157,7 +157,7 @@ class ArrowConan(ConanFile):
         cmake_layout(self, src_folder="src")
 
     def _requires_rapidjson(self):
-       return self.options.with_json or self.options.encryption
+        return self.options.with_json or self.options.encryption
 
     def requirements(self):
         if self.options.with_thrift:
