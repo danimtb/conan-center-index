@@ -1,0 +1,18 @@
+name: "[service] Check open pull-requests per user"
+
+on:
+  pull_request_target:
+    types: [opened]
+
+jobs:
+  comment:
+    # if: github.repository == 'conan-io/conan-center-index'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: master
+      - uses: ./.github/actions/check-open-prs-per-user
+        with:
+          threshold: "2"
+          comment: "Hi @{username}, we see you have some pull-requests still open :open_file_folder:\\n\\nPlease consider working on those first and help us improve the experience for everyone using conan-center-index :handshake:\\n\\n Thank you! :smile:"
