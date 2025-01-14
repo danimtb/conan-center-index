@@ -71,9 +71,15 @@ class LlamaCppConan(ConanFile):
     def layout(self):
         cmake_layout(self, src_folder="src")
 
+    def build_requirements(self):
+        if self.options.with_cuda:
+            self.tool_requires("cuda-toolkit/12.6.3")
+
     def requirements(self):
         if self.options.with_curl:
             self.requires("libcurl/[>=7.78 <9]")
+        if self.options.with_cuda:
+            self.requires("cuda-toolkit/12.6.3")
 
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
