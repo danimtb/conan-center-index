@@ -32,7 +32,7 @@ class IMGUIConan(ConanFile):
 
     def requirements(self):
         if self.options.with_sdl3_bindings:
-            self.requires("sdl/[>3]")
+            self.requires("sdl/[>3]", transitive_headers=True)
 
     def export_sources(self):
         copy(self, "CMakeLists.txt", self.recipe_folder, self.export_sources_folder)
@@ -111,6 +111,11 @@ class IMGUIConan(ConanFile):
         _is_docking_branch = "docking" in str(self.version)
         self.conf_info.define("user.imgui:with_docking", _is_docking_branch)
         self.cpp_info.libs = ["imgui"]
+        if self.options.with_sdl3_bindings:
+            bindings_path = os.path.join(self.package_folder, "res", "bindings")
+            self.cpp_info.includedirs.append(bindings_path)
+            self.cpp_info.sources = [os.path.join(bindings_path, "imgui_impl_sdl3.cpp"),
+                                     os.path.join(bindings_path, "imgui_impl_sdlrenderer3.cpp")]
         if self.settings.os == "Linux":
             self.cpp_info.system_libs.append("m")
         if self.settings.os == "Windows":

@@ -7,12 +7,14 @@ set(IMGUI_EXPORT_HEADERS imgui_export_headers.h)
 
 file(GLOB SOURCE_FILES ${IMGUI_SRC_DIR}/*.cpp)
 if(IMGUI_WITH_SDL3_BINDINGS)
-    list(APPEND SOURCE_FILES ${IMGUI_SRC_DIR}/backends/imgui_impl_sdl3.cpp)
+    # list(APPEND SOURCE_FILES ${IMGUI_SRC_DIR}/backends/imgui_impl_sdl3.cpp)
+    # list(APPEND SOURCE_FILES ${IMGUI_SRC_DIR}/backends/imgui_impl_sdlrenderer3.cpp)
 endif()
 
 file(GLOB HEADER_FILES ${IMGUI_SRC_DIR}/*.h)
 if(IMGUI_WITH_SDL3_BINDINGS)
-    list(APPEND HEADER_FILES ${IMGUI_SRC_DIR}/backends/imgui_impl_sdl3.h)
+    # list(APPEND HEADER_FILES ${IMGUI_SRC_DIR}/backends/imgui_impl_sdl3.h)
+    # list(APPEND HEADER_FILES ${IMGUI_SRC_DIR}/backends/imgui_impl_sdlrenderer3.h)
 endif()
 
 if(IMGUI_ENABLE_TEST_ENGINE)
