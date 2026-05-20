@@ -47,7 +47,7 @@ class SleefConan(ConanFile):
             raise ConanInvalidConfiguration(f"{self.ref} does not support cross-building")
 
     def requirements(self):
-        self.requires("cuda-toolkit/12.6.0")
+        self.requires("cuda-toolkit/12.6.3")
 
     def build_requirements(self):
         self.tool_requires("cmake/[>=3.18]")

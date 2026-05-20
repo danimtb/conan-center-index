@@ -12,9 +12,9 @@ from conan.tools.apple import is_apple_os
 from conan.tools.microsoft import is_msvc_static_runtime, is_msvc
 from pathlib import Path
 from conan.tools.env import VirtualBuildEnv
-from conan.tools.system import PipEnv
+from conan.tools.system import PyEnv
 
-required_conan_version = ">=2.23"
+required_conan_version = ">=2.26"
 
 class LibtorchRecipe(ConanFile):
     name = "libtorch"
@@ -110,7 +110,7 @@ class LibtorchRecipe(ConanFile):
         if self._has_ittapi:
             self.requires("ittapi/3.25.5")
         if self.options.with_cuda:
-            self.requires("cuda-toolkit/12.6.0")
+            self.requires("cuda-toolkit/12.6.3")
             self.requires("cutlass/4.3.5")
             self.requires("nvtx/3.3.0")
         if self.options.with_gflags:
@@ -224,13 +224,13 @@ class LibtorchRecipe(ConanFile):
         tc.cache_variables["USE_NNPACK"] = self.options.get_safe("with_nnpack")
         tc.cache_variables["USE_NUMA"] = self.options.get_safe("with_numa")
 
-        # PyEnv/PipEnv is set up to put the virtual env first in PATH
+        pyenv = PyEnv(self)
+        pyenv.install(["pyyaml", "typing-extensions"])
+        pyenv.generate()
+        # PyEnv is set up to put the virtual env first in PATH
         # but CMake's default behaviour may prioritise other locations
-        # we need: "use the first python3 you find in PATH"
-        tc.cache_variables['Python_FIND_UNVERSIONED_NAMES'] = 'FIRST'
-        tc.cache_variables['Python_FIND_STRATEGY'] = 'LOCATION'
-        tc.cache_variables['Python_FIND_VIRTUALENV'] = 'STANDARD'
-        tc.cache_variables['Python_FIND_REGISTRY'] = 'NEVER'
+        tc.cache_variables['Python_ROOT_DIR'] = pyenv.env_dir
+        tc.cache_variables['Python_EXECUTABLE'] = pyenv.env_exe
 
         # Cuda support
         tc.cache_variables["USE_CUDA"] = self.options.with_cuda
@@ -248,10 +248,6 @@ class LibtorchRecipe(ConanFile):
         tc.cache_variables["CUDA_nvrtc_LIBRARY"] = nvrct
 
         tc.generate()
-
-        pip = PipEnv(self)
-        pip.install(["pyyaml", "typing-extensions"])
-        pip.generate()
 
     def build(self):
         cmake = CMake(self)
