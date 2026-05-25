@@ -1111,7 +1111,7 @@ class OpenCVConan(ConanFile):
         if self.options.get_safe("with_tesseract"):
             self.requires("tesseract/5.5.2")
         if self.options.get_safe("with_cuda"):
-            self.requires("cuda-toolkit/12.6.0")
+            self.requires("cuda-toolkit/12.6.3")
             self.requires("abseil/[>=20230802.1 <=20250814.0]")
 
     def package_id(self):

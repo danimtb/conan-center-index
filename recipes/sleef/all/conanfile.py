@@ -58,6 +58,13 @@ class SleefConan(ConanFile):
 
     def generate(self):
         tc = CMakeToolchain(self)
+        # CMake's Visual Studio generator runs try_compile in Debug by default,
+        # but Conan only sets CMAKE_MSVC_RUNTIME_LIBRARY for the configured
+        # build_type. With SLEEF_ENABLE_CUDA=ON, NVIDIA's CUDA.targets fails
+        # in CMakeTestCUDACompiler with MSB4023 because the host RuntimeLibrary
+        # metadata is empty. Force try_compile to use the same config we build.
+        if self.settings.os == "Windows":
+            tc.cache_variables["CMAKE_TRY_COMPILE_CONFIGURATION"] = str(self.settings.build_type)
         tc.cache_variables["SLEEF_BUILD_LIBM"] = True
         tc.cache_variables["SLEEF_BUILD_DFT"] = False
         tc.cache_variables["SLEEF_BUILD_QUAD"] = True

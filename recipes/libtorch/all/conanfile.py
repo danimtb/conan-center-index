@@ -213,7 +213,7 @@ class LibtorchRecipe(ConanFile):
         tc.cache_variables["USE_MAGMA"] = False   # TODO unvendor after adding to CCI
         tc.cache_variables["USE_MPI"] = False
         tc.cache_variables["USE_NUMPY"] = False
-        tc.cache_variables["USE_TENSORPIPE"] = self.settings.os == "Windows"
+        tc.cache_variables["USE_TENSORPIPE"] = self.settings.os != "Windows"
 
         if not self._has_backtrace:
             tc.cache_variables["CMAKE_DISABLE_FIND_PACKAGE_Backtrace"] = True
@@ -239,13 +239,22 @@ class LibtorchRecipe(ConanFile):
         tc.cache_variables["USE_CUSPARSELT"] = False
         tc.cache_variables["USE_FLASH_ATTENTION"] = True
         tc.cache_variables["USE_MEM_EFF_ATTENTION"] = True
-        # TODO: Generate this in cuda-toolkit, not here
-        # tc.cache_variables["CUDA_NVCC_EXECUTABLE"] = os.path.join(self.dependencies["cuda-toolkit"].cpp_info.bindir, "nvcc")
-        # tc.cache_variables["CUDA_TOOLKIT_ROOT_DIR"] = self.dependencies["cuda-toolkit"].package_folder
-        # tc.cache_variables["CUDA_VERSION"] = str(self.dependencies["cuda-toolkit"].ref.version)
-        nvrct = os.path.join(self.dependencies["cuda-toolkit"].cpp_info.libdirs[0], "libnvrtc.so")
-        self.output.info(f"Setting CUDA_nvrtc_LIBRARY to {nvrct}")
-        tc.cache_variables["CUDA_nvrtc_LIBRARY"] = nvrct
+        if self.options.with_cuda:
+            # TODO: Generate this in cuda-toolkit, not here
+            # tc.cache_variables["CUDA_NVCC_EXECUTABLE"] = os.path.join(self.dependencies["cuda-toolkit"].cpp_info.bindir, "nvcc")
+            # tc.cache_variables["CUDA_TOOLKIT_ROOT_DIR"] = self.dependencies["cuda-toolkit"].package_folder
+            # tc.cache_variables["CUDA_VERSION"] = str(self.dependencies["cuda-toolkit"].ref.version)
+            cuda_pkg = self.dependencies["cuda-toolkit"].package_folder
+            if self.settings.os == "Windows":
+                nvrct = os.path.join(cuda_pkg, "lib", "x64", "nvrtc.lib")
+            else:
+                nvrct = os.path.join(cuda_pkg, "lib", "libnvrtc.so")
+            self.output.info(f"Setting CUDA_nvrtc_LIBRARY to {nvrct}")
+            tc.cache_variables["CUDA_nvrtc_LIBRARY"] = nvrct
+        else:
+            # USE_SYSTEM_LIBS=True sets USE_SYSTEM_NVTX=ON, which causes cmake to require nvtx
+            # even when CUDA is disabled. Override it so the vendored/stub path is used instead.
+            tc.cache_variables["USE_SYSTEM_NVTX"] = False
 
         tc.generate()
 
